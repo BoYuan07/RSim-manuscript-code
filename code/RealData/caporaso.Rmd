@@ -1,0 +1,287 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+library(biomformat)
+library(stringr)
+library(ape)
+library(phyloseq)
+library(MicrobiomeStat)
+library(ggVennDiagram)
+library(edgeR)
+library(dada2)
+library(microbiome)
+library(viridis)
+library(RDB)
+library(viridis)
+library(ggplot2)
+library(patchwork)
+```
+
+```{r}
+source("../Algorithm.R")
+```
+
+```{r}
+##data preprocessing
+filepath <- "../../data/Caporaso/"
+folders<-list.files(path = filepath)
+i=1
+
+filep<-paste(filepath,"/","reference-hit.biom", sep = "")
+x = read_biom(filep)
+
+treep<-paste(filepath,"/","insertion_tree.relabelled.tre", sep = "")
+treefile = readChar(treep,file.info(treep)$size)
+str_count(treefile, pattern = '; ')
+treefile2 = gsub('; ','|',treefile)
+tree = read.tree(text=treefile2)
+nalength=is.na(tree$edge.length)
+nonzerolength=tree$edge.length!=0
+tree$edge.length[nalength]=sample(tree$edge.length[(!nalength)&nonzerolength], sum(nalength))
+
+sum(tree$edge.length==0 & tree$edge[,2]<=length(tree$tip.label))
+meta = read.delim(paste(filepath,"/","sample_data.txt", sep = ""))
+samplenames <- sapply(x$columns, function(y){y$id})
+meta <- meta[meta$sample_name %in% samplenames,]
+
+otu <- sapply(x$rows, function(y){y$id})
+drop_tips <- tree$tip.label[!(tree$tip.label %in% otu)]
+tree <- ape::drop.tip(tree,drop_tips) %>% ape::as.phylo()
+P <- sapply(x$data, function(y,subsamplenames){y[subsamplenames]}, subsamplenames = meta$sample_name)
+colnames(P) <- otu
+P = t(P)
+meta = meta[colSums(P)>100,]
+P = P[rowSums(P)>0,]
+P = P[,colSums(P)>100]
+rownames(meta) = meta$sample_name
+```
+
+# PCoA-Figure S4
+
+```{r}
+P1 = P[,meta$host == 'M3']
+meta1 = meta[meta$host == 'M3',]
+P_lp = P1[,meta1$common_sample_site=="R_palm"]
+meta_lp = meta1[meta1$common_sample_site=="R_palm",]
+seq_depth = data.frame(dp = colSums(P_lp), days = meta_lp$days_since_experiment_start)
+
+# Figure S4c
+ggplot(data = seq_depth, aes(x = days, y = dp))+
+  geom_point(size = 0.3)+
+  geom_smooth(se = FALSE)+
+  xlab("Days")+
+  ylab("Sequencing Depth")+
+  theme_bw()
+```
+
+```{r}
+# Normalization
+P.list = Normalized(P1,eta=0)
+
+method.list = c("Unnormalized", "RSim", "CSS", "MED", "TMM", "TSS", "UQ")
+dist.list = list()
+for(i in 1:length(P.list)){
+  dist.list[[i]] = dist(t((log2(P.list[[i]]+1))))
+}
+
+palm.ind = which(meta1$common_sample_site == 'R_palm')
+dist.palm = list()
+for(i in 1:length(P.list)){
+  distP = as.matrix(dist.list[[i]])
+  dist.palm[[i]] = distP[palm.ind,palm.ind]
+}
+```
+
+```{r}
+# Figure S4a
+time = meta_lp$days_since_experiment_start
+p.age = NULL
+for(i in 1:length(P.list)){
+  dist_matrix = dist.palm[[i]]
+  mds.stuff = cmdscale(dist_matrix, eig=T, x.ret=T)
+  mds.var.per = round(mds.stuff$eig/sum(mds.stuff$eig)*100,1)
+  mds.values = mds.stuff$points
+  mds.data = data.frame(Sample=rownames(mds.values),
+                     X=mds.values[,1],
+                     Y=mds.values[,2],
+                     Days = time)
+  if(is.null(p.age)){
+    p.age = ggplot(data=mds.data, aes(x=X, y=Y,col=Days))+
+    geom_point(size=0.5)+
+    scale_colour_gradientn(colors = viridis(10))+
+    xlab(paste("PCoA1 -", mds.var.per[1], '%', sep=""))+
+    ylab(paste("PCoA2 -", mds.var.per[2], '%', sep=""))+
+    ggtitle(label = method.list[i])+
+    theme_bw()
+  }else{
+    p.age = p.age + ggplot(data=mds.data, aes(x=X, y=Y,col=Days))+
+    geom_point(size=0.5)+
+    scale_colour_gradientn(colors = viridis(10))+
+    xlab(paste("PCoA1 -", mds.var.per[1], '%', sep=""))+
+    ylab(paste("PCoA2 -", mds.var.per[2], '%', sep=""))+
+    ggtitle(label = method.list[i])+
+    theme_bw()
+  }
+}
+p.age + plot_layout(ncol = 7,guides = "collect")&theme(legend.position = "bottom")
+```
+
+```{r}
+# Figure S4b
+seq = colSums(P_lp)
+p.seq = NULL
+for(i in 1:length(P.list)){
+  dist_matrix = dist.palm[[i]]
+  mds.stuff = cmdscale(dist_matrix, eig=T, x.ret=T)
+  mds.var.per = round(mds.stuff$eig/sum(mds.stuff$eig)*100,1)
+  mds.values = mds.stuff$points
+  mds.data = data.frame(Sample=rownames(mds.values),
+                     X=mds.values[,1],
+                     Y=mds.values[,2],
+                     gl = seq)
+  if(is.null(p.seq)){
+    p.seq = ggplot(data=mds.data, aes(x=X, y=Y,col=gl))+
+    geom_point(size=0.5)+
+    scale_colour_gradientn(colors = viridis(10),name = "Sequencing Depth")+
+    xlab(paste("PCoA1 -", mds.var.per[1], '%', sep=""))+
+    ylab(paste("PCoA2 -", mds.var.per[2], '%', sep=""))+
+    ggtitle(label = method.list[i])+
+    theme_bw()
+  }else{
+    p.seq = p.seq + ggplot(data=mds.data, aes(x=X, y=Y,col=gl))+
+    geom_point(size=0.5)+
+    scale_colour_gradientn(colors = viridis(10),name = "Sequencing Depth")+
+    xlab(paste("PCoA1 -", mds.var.per[1], '%', sep=""))+
+    ylab(paste("PCoA2 -", mds.var.per[2], '%', sep=""))+
+    ggtitle(label = method.list[i])+
+    theme_bw()
+  }
+}
+
+p.seq + plot_layout(ncol = 7,guides = "collect")&theme(legend.position = "bottom")
+```
+
+# Differential Abundant Test-Figure 6
+
+```{r}
+# M3-R_palm
+ind1 = which(seq>20000)
+ind2 = which(seq<10000)
+
+X = P_lp[,c(ind1,ind2)]
+meta_x = meta_lp[c(ind1,ind2),]
+Y = c(rep(1,length(ind1)),rep(2,length(ind2)))
+meta_x$Y = Y
+X = X[rowSums(X)>0,]
+
+OTU = otu_table(X,taxa_are_rows=T) # matrix
+META = sample_data(meta_x) # data frame
+PHYLO = phy_tree(tree) # tree (list)
+physeq = phyloseq(OTU, META, PHYLO) 
+```
+
+```{r}
+#ancom
+res1 = ANCOMBC::ancom(physeq, main_var = "Y",p_adj_method = "BH")
+q_data = res1$q_data
+a.res = c()
+for(alpha in seq(0.01,0.1,0.01)){
+  a.res = c(a.res,mean(apply(q_data,2,function(x)(sum(x<alpha)>0.9*(ncol(q_data)-1)))))
+}
+
+#linda
+linda.res = linda(X,meta_x, formula = "~Y")
+linda.q = linda.res$output$Y$padj
+linda.res2 = c()
+for(alpha in seq(0.01,0.1,0.01)){
+  linda.res2 = c(linda.res2,mean(linda.q<alpha))
+}
+
+# EdgeR
+data_new<-X
+conds<-factor(Y)
+edgeR.dgelist<-DGEList(counts=as.matrix(data_new), group=conds)
+edgeR.dgelist<-edgeR::calcNormFactors(edgeR.dgelist)
+edgeR.dgelist<-estimateCommonDisp(edgeR.dgelist)
+edgeR.dgelist<-estimateTagwiseDisp(edgeR.dgelist)
+edgeR.test.tgw<-exactTest(edgeR.dgelist)
+ER = c()
+for(alpha in seq(0.01,0.1,0.01)){
+  er.res = decideTestsDGE(edgeR.test.tgw, adjust.method="BH", p.value=alpha)
+  ER = c(ER,mean(er.res@.Data==1)+mean(er.res@.Data==-1))
+}
+
+# RDB
+rdb.res = c()
+for(alpha in seq(0.01,0.1,0.01)){
+  rdb_res = RDB::rdb(t(X),as.numeric(as.factor(Y))-1,alpha = alpha)
+  rdb.res = c(rdb.res,mean(rdb_res))
+}
+
+# t-test
+X.list = Normalized(X,eta = 0)
+t.res = list()
+for(i in 1:length(X.list)){
+  X1 = X.list[[i]]
+  data = as.data.frame(cbind(t(X1),Y))
+  t_p <- sapply(1:(ncol(data)-1), function(i)t.test(as.numeric(data[, i]) ~ Y, data = data)$p.value)
+  p.adj <- p.adjust(t_p, method='BH')
+  res = c()
+  for(alpha in seq(0.01,0.1,0.01)){
+    res = c(res,mean(p.adj<alpha))
+  }
+  t.res[[i]] = res
+}
+```
+
+```{r}
+# Figure 6a
+res1 = list(t.res[[1]], t.res[[2]], t.res[[3]], t.res[[4]], t.res[[5]], t.res[[6]], t.res[[7]])
+method = c("Unnormalized-t", "RSim-t", "CSS-t", "MED-t", "TMM-t", "TSS-t", "UQ-t")
+
+data = data.frame("alpha" =seq(0.01,0.1,0.01), "Error" = res1[[1]], "Method" = rep(method[1],10))
+for(i in 2:length(res1)){
+  data1 = data.frame("alpha" =seq(0.01,0.1,0.01), "Error" = res1[[i]], "Method" = rep(method[i],10))
+  data = rbind(data,data1)
+}
+
+ggplot(data, aes(alpha,Error))+
+  scale_shape_manual(values=1:7)+
+  geom_point(aes(color = Method, shape = Method))+
+  geom_abline(intercept = 0, slope = 1,color="black")+
+  xlab("Significance Level")+
+  ylab("FDR")+
+  ylim(0,0.2)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))+
+  scale_color_brewer(palette="Dark2")
+```
+
+
+```{r}
+# Figure 6b
+res1 = list(t.res[[2]], a.res, ER, rdb.res, linda.res2)
+method = c("RSim-t", "ANCOM", "EdgeR", "RDB", "LinDA")
+data2 = data.frame("alpha" =seq(0.01,0.1,0.01), "Error" = res1[[1]], "Method" = rep(method[1],10))
+for(i in 2:length(res1)){
+  data1 = data.frame("alpha" =seq(0.01,0.1,0.01), "Error" = res1[[i]], "Method" = rep(method[i],10))
+  data2 = rbind(data2,data1)
+}
+
+
+ggplot(data2, aes(alpha,Error))+
+  geom_point(aes(color = Method, shape = Method))+
+  geom_abline(intercept = 0, slope = 1,color="black")+
+  xlab("Significance Level")+
+  ylab("FDR")+
+  ylim(0,0.5)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))+
+  scale_color_brewer(palette="Dark2")
+```
+

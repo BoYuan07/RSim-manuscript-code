@@ -1,0 +1,107 @@
+```{r}
+library(dplyr)
+library(patchwork)
+library(ggplot2)
+source("../Algorithm.R")
+load('../../data/He/subtree.RData')
+```
+
+```{r}
+set.seed(1)
+A1 = t(A)
+A1 = A1[rowSums(A1)!=0,]
+A1 = A1[,sample(ncol(A1),500)]
+```
+
+
+```{r}
+# weak signal(1400/250)
+set.seed(1)
+X = A1
+d = nrow(X)
+m = ncol(X)
+Y = runif(m)
+lambda = 1
+Clade = sample(d,0.1*d)
+X[Clade,1:(m/2)] = X[Clade,1:(m/2)]+matrix(rpois((length(Clade)*m/2), lambda),nrow = length(Clade))
+X = sapply(1:m, function(i)rbinom(d, X[,i], Y[i]))
+sf_res1 = est_factor(X, eta=0.2, ref = (1:d)[-Clade])
+
+for(i in 1:7){
+  sf_res1[((i-1)*m+1):(i*m),1] = sf_res1[((i-1)*m+1):(i*m),1]*mean(Y)/mean(sf_res1[((i-1)*m+1):(i*m),1])
+}
+
+sf_res1$Group = rep(as.factor(c(rep(1,m/2),rep(2,m/2))),7)
+sf_res1$true = rep(Y,7)
+ggplot(data = sf_res1, aes(x = true, y = sf.est, color = Group))+
+    geom_point(size = 0.25)+
+    geom_abline(slope = 1,intercept = 0,color = 'black',linewidth = 0.25)+
+    facet_grid(cols = vars(Method))+
+    xlab('True Sampling Fraction')+
+    ylab('Estimated Sampling Fraction')+
+    theme_bw()+
+    ylim(0,3)
+```
+
+
+```{r}
+set.seed(1)
+# moderate signal
+X = A1
+d = nrow(X)
+m = ncol(X)
+Y = runif(m)
+lambda = 10
+Clade = sample(d,0.1*d)
+X[Clade,1:(m/2)] = X[Clade,1:(m/2)]+matrix(rpois((length(Clade)*m/2), lambda),nrow = length(Clade))
+X = sapply(1:m, function(i)rbinom(d, X[,i], Y[i]))
+sf_res2 = est_factor(X, eta=0.25, ref = (1:d)[-Clade])
+
+for(i in 1:7){
+  sf_res2[((i-1)*m+1):(i*m),1] = sf_res2[((i-1)*m+1):(i*m),1]*mean(Y)/mean(sf_res2[((i-1)*m+1):(i*m),1])
+}
+
+sf_res2$Group = rep(as.factor(c(rep(1,m/2),rep(2,m/2))),7)
+sf_res2$true = rep(Y,7)
+
+ggplot(data = sf_res2, aes(x = true, y = sf.est, color = Group))+
+    geom_point(size = 0.25)+
+    geom_abline(slope = 1,intercept = 0,color = 'black',linewidth = 0.25)+
+    facet_grid(cols = vars(Method))+
+    xlab('True Sampling Fraction')+
+    ylab('Estimated Sampling Fraction')+
+    theme_bw()+
+    ylim(0,3)
+```
+
+
+```{r}
+set.seed(1)
+# strong signal
+X = A1
+d = nrow(X)
+m = ncol(X)
+Y = runif(m)
+lambda = 100
+Clade = sample(d,0.1*d)
+X[Clade,1:(m/2)] = X[Clade,1:(m/2)]+matrix(rpois((length(Clade)*m/2), lambda),nrow = length(Clade))
+X = sapply(1:m, function(i)rbinom(d, X[,i], Y[i]))
+sf_res3 = est_factor(X, eta=0.22, ref = (1:d)[-Clade])
+
+for(i in 1:7){
+  sf_res3[((i-1)*m+1):(i*m),1] = sf_res3[((i-1)*m+1):(i*m),1]*mean(Y)/mean(sf_res3[((i-1)*m+1):(i*m),1])
+}
+
+sf_res3$Group = rep(as.factor(c(rep(1,m/2),rep(2,m/2))),7)
+sf_res3$true = rep(Y,7)
+
+ggplot(data = sf_res3, aes(x = true, y = sf.est, color = Group))+
+    geom_point(size = 0.25)+
+    geom_abline(slope = 1,intercept = 0,color = 'black',linewidth = 0.25)+
+    facet_grid(cols = vars(Method))+
+    xlab('True Sampling Fraction')+
+    ylab('Estimated Sampling Fraction')+
+    theme_bw()+
+    ylim(0,3)
+```
+

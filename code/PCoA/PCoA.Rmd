@@ -1,0 +1,189 @@
+```{r}
+library(dplyr)
+library(patchwork)
+source("../Algorithm.R")
+load('../../data/He/subtree.RData')
+```
+
+```{r}
+## Plot ###########################
+mds.plot = function(A,gl,main){
+  dist_matrix = dist(t(A))
+  mds.stuff = cmdscale(dist_matrix, eig=T, x.ret=T)
+  mds.var.per = round(mds.stuff$eig/sum(mds.stuff$eig)*100,1)
+  mds.values = mds.stuff$points
+  mds.data = data.frame(Sample=rownames(mds.values),
+                         X=mds.values[,1],
+                         Y=mds.values[,2],
+                         Group = gl)
+
+
+  ggplot(data=mds.data, aes(x=X, y=Y,color=Group))+
+    geom_point(size=0.5)+
+    xlab(paste("PCoA1 -", mds.var.per[1], '%', sep=""))+
+    ylab(paste("PCoA2 -", mds.var.per[2], '%', sep=""))+
+    ggtitle(label = main)+
+    theme_bw()+
+    theme(legend.key.height=unit(0.5,"cm"))
+}
+```
+
+# Raw data
+
+```{r}
+# Figure: 3a
+set.seed(1)
+A1 = t(A)
+A1 = A1[rowSums(A1)!=0,]
+A1 = A1[,colSums(A1)>30000]
+m = ncol(A1)
+group.list = data.frame('Group' = as.factor(c(rep(1,floor(m/2)),rep(2,(m-floor(m/2))))))
+P.list = Normalized(A1,eta=0.2)
+
+method.list = c('Unnormalized','RSim','CSS','MED','TMM','TSS','UQ')
+
+p = NULL
+for(i in 1:length(P.list)){
+  if(is.null(p)){
+    p = mds.plot(log2(P.list[[i]]+1),group.list,method.list[i])
+  }else{
+    p = p + mds.plot(log2(P.list[[i]]+1),group.list,method.list[i])
+  }
+}
+
+p + plot_layout(ncol = 7,guides = "collect")& theme(legend.position = "bottom")
+```
+
+
+# Change Sampling fraction
+
+```{r}
+# Figure: 3b
+set.seed(1)
+A1 = t(A)
+A1 = A1[rowSums(A1)!=0,]
+A1 = A1[,colSums(A1)>30000]
+m = ncol(A1)
+lambda = 10
+mode(A1) = "integer"
+X1 = A1[,1:floor(m/2)]
+X2 = A1[,(floor(m/2)+1):m]
+X1.1 = t(rrarefy(t(X1),colSums(X1)/lambda)) # subsample X1 to totalcounts/lambda
+ind1 = (apply(X1.1,2,function(x)sum(x!=0))<5) # remove sample with counts<5
+X1.1 = X1.1[,!ind1]
+
+X = cbind(X1.1,X2)
+X= X[rowSums(X)>0,]
+group.list = data.frame('Group' = as.factor(c(rep(1,ncol(X1.1)),rep(2,ncol(X2)))))
+P.list = Normalized(X,eta=0.2)
+method.list = c('Unnormalized','RSim','CSS','MED','TMM','TSS','UQ')
+p = NULL
+for(i in 1:length(P.list)){
+  if(is.null(p)){
+    p = mds.plot(log2(P.list[[i]]+1),group.list,method.list[i])
+  }else{
+    p = p + mds.plot(log2(P.list[[i]]+1),group.list,method.list[i])
+  }
+}
+
+p + plot_layout(ncol = 7,guides = "collect")& theme(legend.position = "bottom")
+```
+
+```{r}
+# Figure: S3a
+set.seed(1)
+A1 = t(A)
+A1 = A1[rowSums(A1)!=0,]
+X = A1
+m = ncol(X)
+d = nrow(X)
+# absolute abundance
+Clade = order(rowSums(A1),decreasing = T)[1:(0.25*d)]
+X = X*20
+X[Clade,1:floor(m/2)] = X[Clade,1:floor(m/2)]*50
+
+# sampling fraction
+sf = c(rnorm(floor(m/2),-3,0.25),rnorm((m-floor(m/2)),0,0.25))
+sf = exp(sf)
+sf[sf>1] = 1
+
+# observed counts
+X = sapply(1:ncol(X), function(i)rbinom(nrow(X), X[,i], sf[i]))
+
+group.list = data.frame('Group' = as.factor(c(rep(1,floor(m/2)),rep(2,(m-floor(m/2))))))
+P.list = Normalized(X,eta=0)
+method.list = c('Unnormalized','RSim','CSS','MED','TMM','TSS','UQ')
+
+p = NULL
+for(i in 1:(length(P.list))){
+  if(is.null(p)){
+    p = mds.plot(log2(P.list[[i]]+1),group.list,method.list[i])
+  }else{
+    p = p + mds.plot(log2(P.list[[i]]+1),group.list,method.list[i])
+  }
+}
+
+p + plot_layout(ncol = 7,guides = "collect")& theme(legend.position = "bottom")
+```
+
+```{r}
+library(viridis)
+## Plot ###########################
+mds.plot1 = function(A,gl,main){
+  dist_matrix = dist(t(A))
+  mds.stuff = cmdscale(dist_matrix, eig=T, x.ret=T)
+  mds.var.per = round(mds.stuff$eig/sum(mds.stuff$eig)*100,1)
+  mds.values = mds.stuff$points
+  mds.data = data.frame(Sample=rownames(mds.values),
+                         X=mds.values[,1],
+                         Y=mds.values[,2],
+                         Signal = gl)
+
+
+  ggplot(data=mds.data, aes(x=X, y=Y,col=Signal))+
+    geom_point(size=0.5)+
+    scale_colour_gradientn(colors = viridis(10))+
+    xlab(paste("PCoA1 -", mds.var.per[1], '%', sep=""))+
+    ylab(paste("PCoA2 -", mds.var.per[2], '%', sep=""))+
+    ggtitle(label = main)+
+    theme_bw()
+}
+```
+
+```{r}
+# Figure: S3b
+set.seed(1)
+A1 = t(A)
+A1 = A1[rowSums(A1)!=0,]
+X = A1
+m = ncol(X)
+d = nrow(X)
+Clade = order(rowSums(A1),decreasing = T)[1:(0.01*d)]
+Y = runif(m,5,500)
+
+# absolute abundance
+X[Clade,] = t(apply(X[Clade,],1,function(x)x*Y))
+X = floor(X)
+
+# sampling fraction
+sf = 1/rnorm(m,Y)
+sf[sf>1] = 1
+
+# observed counts
+X = sapply(1:ncol(X), function(i)rbinom(nrow(X), X[,i], sf[i]))
+ref = (1:d)[-Clade]
+Signal = Y
+P.list = Normalized(X,eta=0)
+method.list = c('Unnormalized','RSim','CSS','MED','TMM','TSS','UQ')
+
+p = NULL
+for(i in 1:(length(P.list))){
+  if(is.null(p)){
+    p = mds.plot1(log2(P.list[[i]]+1),Signal,method.list[i])
+  }else{
+    p = p + mds.plot1(log2(P.list[[i]]+1),Signal,method.list[i])
+  }
+}
+p + plot_layout(ncol = 7,guides = "collect")& theme(legend.position = "bottom")
+```
+
