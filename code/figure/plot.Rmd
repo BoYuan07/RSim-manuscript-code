@@ -1,3 +1,8 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
 ```{r}
 library(ggplot2)
 library(latex2exp)
@@ -7,7 +12,7 @@ library(patchwork)
 # Misclassification Error
 
 ```{r}
-## Figure: S1
+## Figure: S1a
 eta1 = as.data.frame(t(read.csv("../table/accuracy/eta_1.csv")[,-1]))
 eta2 = as.data.frame(t(read.csv('../table/accuracy/eta_2.csv')[,-1]))
 eta3 = as.data.frame(t(read.csv('../table/accuracy/eta_3.csv')[,-1]))
@@ -33,19 +38,55 @@ eta3$setting = "Setting 3"
 
 eta.data = rbind(eta1,eta2,eta3)
 
+
 ggplot(data=eta.data, aes(x= eta, y = V1, group = Error))+
   geom_line(linetype = "dashed",aes(color = Error))+
   geom_point(aes(color = Error))+
   facet_grid(cols = vars(setting))+ 
   ylim(0,0.3)+
-  xlab("Target Misclassification Rate")+ 
+  xlab(TeX("Target Misclassification Rate($\\eta$)"))+ 
   ylab("Misclassification Rate")+
   theme_bw()
 ```
 
 
 ```{r}
-# Figure S2
+## Figure: S1b
+eta1 = as.data.frame(t(read.csv("../table/accuracy/eta_4.csv")[,-1]))
+eta2 = as.data.frame(t(read.csv('../table/accuracy/eta_5.csv')[,-1]))
+eta3 = as.data.frame(t(read.csv('../table/accuracy/eta_6.csv')[,-1]))
+
+eta1$Error = "Empirical Misclassification Rate"
+eta1$gamma = seq(0.5,0.95,0.05)
+eta2$Error = "Empirical Misclassification Rate"
+eta2$gamma = seq(0.5,0.95,0.05)
+w = data.frame('V1' = rep(0.1,10))
+w$gamma = seq(0.5,0.95,0.05)
+w$Error = "Target Misclassification Rate"
+eta1 = rbind(eta1,w)
+eta2 = rbind(eta2,w)
+eta1$setting = "Setting 1"
+eta2$setting = "Setting 2"
+eta3$Error = "Empirical Misclassification Rate"
+eta3$gamma = seq(0.5,0.95,0.05)
+eta3 = rbind(eta3,w)
+eta3$setting = "Setting 3"
+
+eta.data = rbind(eta1,eta2,eta3)
+
+ggplot(data=eta.data, aes(x= gamma, y = V1, group = Error))+
+  geom_line(linetype = "dashed",aes(color = Error))+
+  geom_point(aes(color = Error))+
+  facet_grid(cols = vars(setting))+ 
+  ylim(0,0.3)+
+  xlab(expression(gamma))+ 
+  ylab("Misclassification Rate")+
+  theme_bw()
+```
+
+
+```{r}
+# Figure S3
 effect_size <- read.csv('../table/accuracy/lambda.csv')
 colnames(effect_size) = c('Value','error')
 
@@ -96,9 +137,201 @@ p4 = ggplot(data=size, aes(x= Value, y = error))+
   ylab("Misclassification Rate")+
   scale_x_continuous(expand = expansion(mult = .2))+
   theme_bw()
+
 p = p1+p2+p3+p4
 p + plot_layout(ncol = 2,guides = "collect")& theme(legend.position = "bottom")
 ```
+
+```{r}
+# Figure S2a
+power_eta_mirk = read.csv("../table/twosample/eta-mirk.csv")[,-1]
+power_eta_perm = read.csv("../table/twosample/eta-perm.csv")[,-1]
+power_eta = data.frame('Power' = c(t(power_eta_mirk[1,]),t(power_eta_perm[1,])),"eta" = rep(seq(0,0.5,0.05),2),"Test" = c(rep('MiRKAT',11),rep("PERMANOVA",11)))
+
+
+p1 = ggplot(data=power_eta, aes(x=eta, y=Power))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  facet_grid(cols = vars(Test))+    
+  xlab(expression(eta)) + 
+  ylab("Power")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+power_gamma_mirk = read.csv("../table/twosample/gamma-mirk.csv")[,-1]
+power_gamma_perm = read.csv("../table/twosample/gamma-perm.csv")[,-1]
+power_gamma = data.frame('Power' = c(t(power_gamma_mirk[1,]),t(power_gamma_perm[1,])),"gamma" = rep(seq(0,0.9,0.1),2),"Test" = c(rep('MiRKAT',10),rep("PERMANOVA",10)))
+
+p2 = ggplot(data=power_gamma, aes(x=gamma, y=Power))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  facet_grid(cols = vars(Test))+    
+  xlab(expression(gamma)) + 
+  ylab("Power")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+
+p = p1+p2
+p+plot_layout(ncol = 1)
+```
+
+```{r}
+# Figure S2b
+typeI_eta_mirk = read.csv("../table/twosample/typeI-eta-mirk.csv")[,-1]
+typeI_eta_perm = read.csv("../table/twosample/typeI-eta-perm.csv")[,-1]
+typeI_eta = data.frame('Error' = c(t(typeI_eta_mirk[1,]),t(typeI_eta_perm[1,])),"eta" = rep(seq(0,0.5,0.05),2),"Test" = c(rep('MiRKAT',11),rep("PERMANOVA",11)))
+
+
+p1 = ggplot(data=typeI_eta, aes(x=eta, y=Error))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +  
+  geom_abline(intercept = 0.05,slope = 0,color = "black",alpha = 0.5, linetype = "dashed")+
+  facet_grid(cols = vars(Test))+    
+  xlab(expression(eta)) + 
+  ylab("Type I Error")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+
+typeI_gamma_mirk = read.csv("../table/twosample/typeI-gamma-mirk.csv")[,-1]
+typeI_gamma_perm = read.csv("../table/twosample/typeI-gamma-perm.csv")[,-1]
+typeI_gamma = data.frame('Error' = c(t(typeI_gamma_mirk[1,]),t(typeI_gamma_perm[1,])),"gamma" = rep(seq(0,0.9,0.1),2),"Test" = c(rep('MiRKAT',10),rep("PERMANOVA",10)))
+
+p2 = ggplot(data=typeI_gamma, aes(x=gamma, y=Error))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +  
+  geom_abline(intercept = 0.05,slope = 0,color = "black",alpha = 0.5, linetype = "dashed")+
+  facet_grid(cols = vars(Test))+    
+  xlab(expression(gamma)) + 
+  ylab("Type I Error")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+
+p = p1+p2
+p+plot_layout(ncol = 1)
+```
+
+```{r}
+pearson_gamma = read.csv("../table/pearson/gamma_sensitivity.csv")[,-1]
+da_gamma = data.frame('Sensitivity' = pearson_gamma,"gamma" = seq(0,0.9,0.1))
+
+p1 = ggplot(data=da_gamma, aes(x=gamma, y=Sensitivity))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  xlab(expression(gamma)) + 
+  ylab("Sensitivity")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+t_gamma = read.csv("../table/t/gamma_sensitivity.csv")[,-1]
+da_gamma = data.frame('Sensitivity' = t_gamma,"gamma" = seq(0,0.9,0.1))
+
+p2 = ggplot(data=da_gamma, aes(x=gamma, y=Sensitivity))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  xlab(expression(gamma)) + 
+  ylab("Sensitivity")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+pearson_gamma = read.csv("../table/pearson/gamma_FDR.csv")[,-1]
+da_gamma = data.frame('FDR' = pearson_gamma,"gamma" = seq(0,0.9,0.1))
+
+p3 = ggplot(data=da_gamma, aes(x=gamma, y=FDR))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  xlab(expression(gamma)) + 
+  geom_abline(intercept = 0.05,slope = 0,color = "black",alpha = 0.5, linetype = "dashed")+
+  ylab("FDR")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+t_gamma = read.csv("../table/t/gamma_FDR.csv")[,-1]
+da_gamma = data.frame('FDR' = t_gamma,"gamma" = seq(0,0.9,0.1))
+
+p4 = ggplot(data=da_gamma, aes(x=gamma, y=FDR))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  xlab(expression(gamma)) + 
+  geom_abline(intercept = 0.05,slope = 0,color = "black",alpha = 0.5, linetype = "dashed")+
+  ylab("FDR")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+pearson_eta = read.csv("../table/pearson/eta_sensitivity.csv")[,-1]
+da_eta = data.frame('Sensitivity' = pearson_eta,"eta" = seq(0,0.5,0.05))
+
+p5 = ggplot(data=da_eta, aes(x=eta, y=Sensitivity))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  xlab(expression(eta)) + 
+  ylab("Sensitivity")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+t_eta = read.csv("../table/t/eta_sensitivity.csv")[,-1]
+da_eta = data.frame('Sensitivity' = t_eta,"eta" = seq(0,0.5,0.05))
+
+p6 = ggplot(data=da_eta, aes(x=eta, y=Sensitivity))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  xlab(expression(eta)) + 
+  ylab("Sensitivity")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+pearson_eta = read.csv("../table/pearson/eta_FDR.csv")[,-1]
+da_eta = data.frame('FDR' = pearson_eta,"eta" = seq(0,0.5,0.05))
+
+p7 =  ggplot(data=da_eta, aes(x=eta, y=FDR))+ 
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  xlab(expression(eta)) + 
+  geom_abline(intercept = 0.05,slope = 0,color = "black",alpha = 0.5, linetype = "dashed")+
+  ylab("FDR")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+
+t_eta = read.csv("../table/t/eta_FDR.csv")[,-1]
+da_eta = data.frame('FDR' = t_eta,"eta" = seq(0,0.5,0.05))
+
+p8 = ggplot(data=da_eta, aes(x=eta, y=FDR))+
+  geom_line(linetype = "solid",color = "#FF9999")+
+  geom_point(color = "#FF9999") +                        
+  xlab(expression(eta))+ 
+  geom_abline(intercept = 0.05,slope = 0,color = "black",alpha = 0.5, linetype = "dashed")+
+  ylab("FDR")+
+  ylim(0,1)+
+  theme_bw()+
+  theme(legend.text = element_text(size=10))
+```
+
+```{r}
+# S2c
+p = p5+p7+p1+p3
+p+plot_layout(ncol = 2)
+```
+
+
+```{r}
+# S2d
+p = p6+p8+p2+p4
+p+plot_layout(ncol = 2)
+```
+
 
 # Sampling Fraction
 
@@ -116,12 +349,9 @@ sf.table = function(X,method){
 ```{r}
 # sf
 files = list.files(path = "../table/sampling_fraction/", full.names = TRUE)
-```
 
-
-```{r}
 table = NULL
-method = c('CSS','MED','RSim','TMM','TSS','UQ')
+method = c('CSS','GMPR','MED','RSim','TMM','TSS','UQ')
 for(i in 1:length(files)){
   if(is.null(table)){
     table = sf.table(files[i],method[i])
@@ -129,11 +359,10 @@ for(i in 1:length(files)){
   table = rbind(table,sf.table(files[i],method[i]))
   }
 }
-```
 
-
-```{r}
 # Figure 2d
+table$Method = factor(table$Method,level = c('RSim','CSS','MED','TMM','TSS','UQ','GMPR'))
+
 ggplot(data=table, aes(x=as.factor(lambda), y=Bias, fill=Method))+
 geom_bar(stat="identity",
          position=position_dodge(),
@@ -145,8 +374,8 @@ xlab("Signal Strength") +
 ylab("Bias")+
 coord_flip()+
 theme_bw()+
-#geom_hline(yintercept=0, linetype="dashed", color = "red", size=0.5)+
 theme(legend.text = element_text(size=10))
+ggsave("Fig2d.png", units="in", width=6, height=2.7, dpi=300)
 ```
 
 # Differential Abundant Test
@@ -180,7 +409,7 @@ FDR.table = function(X,method){
 files = list.files(path = "../table/t/", pattern = "\\_sensitivity.csv$", full.names = TRUE)
 
 table = NULL
-method = c('CSS','MED','Unnormalized','RSim','TMM','TSS','UQ')
+method = c('CSS','GMPR','MED','Unnormalized','RSim','TMM','TSS','UQ')
 for(i in 1:length(files)){
   if(is.null(table)){
     table = sensitivity.table(files[i],method[i])
@@ -188,6 +417,7 @@ for(i in 1:length(files)){
   table = rbind(table,sensitivity.table(files[i],method[i]))
   }
 }
+table$Method = factor(table$Method,level = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR'))
 
 ggplot(data=table, aes(x= lambda, y = Sensitivity, group = m))+
   geom_line(linetype = "solid",aes(colour=m))+
@@ -198,7 +428,8 @@ ggplot(data=table, aes(x= lambda, y = Sensitivity, group = m))+
   theme_bw()+
   labs(colour = "Sample Size")+
   ylim(0.8,1)+
-  theme(legend.text = element_text(size=5))
+  theme()
+ggsave("Fig5a.png", units="in", width=13, height=2, dpi=300)
 ```
 
 ```{r}
@@ -213,6 +444,7 @@ for(i in 1:length(files)){
   table = rbind(table,FDR.table(files[i],method[i]))
   }
 }
+table$Method = factor(table$Method,level = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR'))
 
 ggplot(data=table, aes(x= lambda, y = FDR, group = m))+
   geom_line(linetype = "solid",aes(colour=m))+
@@ -224,8 +456,8 @@ ggplot(data=table, aes(x= lambda, y = FDR, group = m))+
   ylim(0,1)+
   geom_hline(yintercept=0.1, linetype="dashed", 
             color = "black", size=0.5)+
-  labs(colour = "Sample Size")+
-  theme(legend.text = element_text(size=5))
+  labs(colour = "Sample Size")
+ggsave("Fig5b.png", units="in", width=13, height=2, dpi=300)
 ```
 
 
@@ -266,6 +498,7 @@ for(i in 1:length(files)){
   }
 }
 
+table$Method = factor(table$Method,level = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR'))
 ggplot(data=table, aes(x= lambda, y = Sensitivity, group = m))+
   geom_line(linetype = "solid",aes(colour=m))+
   geom_point(aes(colour=m))+                    # Thinner lines
@@ -275,6 +508,7 @@ ggplot(data=table, aes(x= lambda, y = Sensitivity, group = m))+
   theme_bw()+
   labs(colour = "Sample Size")+
   theme(legend.text = element_text(size=5))
+ggsave("Fig5c.png", units="in", width=13, height=2, dpi=300)
 ```
 
 ```{r}
@@ -289,6 +523,7 @@ for(i in 1:length(files)){
   table = rbind(table,FDR.table(files[i],method[i]))
   }
 }
+table$Method = factor(table$Method,level = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR'))
 
 ggplot(data=table, aes(x= lambda, y = FDR, group = m))+
   geom_line(linetype = "solid",aes(colour=m))+
@@ -302,14 +537,15 @@ ggplot(data=table, aes(x= lambda, y = FDR, group = m))+
             color = "black", size=0.5)+
   labs(colour = "Sample Size")+
   theme(legend.text = element_text(size=5))
+ggsave("Fig5d.png", units="in", width=13, height=2, dpi=300)
 ```
 
 # Association Analysis
 
 ```{r}
-# Figure S5a
-ds_mirk = read.csv('../table/twosample/ds-mirk1.csv')[-8,-1]
-ds_perm = read.csv('../table/twosample/ds-perm1.csv')[-8,-1]
+# Figure S7a
+ds_mirk = read.csv('../table/twosample/strongsig-mirk.csv')[-10,-1]
+ds_perm = read.csv('../table/twosample/strongsig-perm.csv')[-10,-1]
 
 res1 = c()
 res2 = c()
@@ -321,35 +557,37 @@ for(k in 1:ncol(ds_perm)){
 res1 = data.frame('Power'=res1)
 res2 = data.frame('Power'=res2)
 
-res1$Method =  rep(c('Unnormalized', 'RSim', 'CSS', 'MED', 'TMM', 'TSS', 'UQ'),ncol(ds_perm))
-res2$Method =  rep(c('Unnormalized', 'RSim', 'CSS', 'MED', 'TMM', 'TSS', 'UQ'),ncol(ds_perm))
+res1$Method =  rep(c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'),ncol(ds_perm))
+res2$Method =  rep(c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'),ncol(ds_perm))
 
-k = 7
+k = 9
 res1$m = c(rep(100,k),rep(300,k),rep(500,k))
 res2$m = c(rep(100,k),rep(300,k),rep(500,k))
 res1$Test = rep('PERMANOVA',3*k)
 res2$Test = rep('MiRKAT',3*k)
 res = rbind(res1,res2)
+res$Method = factor(res$Method,level = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'))
+
 
 ggplot(data=res, aes(x=as.factor(m), y=Power, fill=Method))+
 geom_bar(stat="identity",
          position=position_dodge(),
          size=.3,
         ) +                        # Thinner lines
-scale_fill_brewer(palette = "Set2")+
+scale_fill_brewer(palette = "Set3")+
 facet_grid(cols = vars(Test))+    # Set legend title
 xlab("Sample size") + 
 ylab("Power")+
 coord_flip()+
 theme_bw()+
 theme(legend.text = element_text(size=10))
-#ggsave('../plot/IT_power1.png' )
+
 ```
 
 ```{r}
 # Figure 4b
-ds_mirk = read.csv('../table/twosample/ds-mirk2.csv')[-8,-1]
-ds_perm = read.csv('../table/twosample/ds-perm2.csv')[-8,-1]
+ds_mirk = read.csv('../table/twosample/weaksig-mirk.csv')[-10,-1]
+ds_perm = read.csv('../table/twosample/weaksig-perm.csv')[-10,-1]
 
 res1 = c()
 res2 = c()
@@ -361,35 +599,38 @@ for(k in 1:ncol(ds_perm)){
 res1 = data.frame('Power'=res1)
 res2 = data.frame('Power'=res2)
 
-res1$Method =  rep(c('Unnormalized', 'RSim', 'CSS', 'MED', 'TMM', 'TSS', 'UQ'),ncol(ds_perm))
-res2$Method =  rep(c('Unnormalized', 'RSim', 'CSS', 'MED', 'TMM', 'TSS', 'UQ'),ncol(ds_perm))
+res1$Method =  rep(c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'),ncol(ds_perm))
+res2$Method =  rep(c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'),ncol(ds_perm))
 
-k = 7
+
+k = 9
 res1$m = c(rep(100,k),rep(300,k),rep(500,k))
 res2$m = c(rep(100,k),rep(300,k),rep(500,k))
 res1$Test = rep('PERMANOVA',3*k)
 res2$Test = rep('MiRKAT',3*k)
 res = rbind(res1,res2)
+res$Method = factor(res$Method,level = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'))
+
 
 ggplot(data=res, aes(x=as.factor(m), y=Power, fill=Method))+
 geom_bar(stat="identity",
          position=position_dodge(),
          size=.3,
         ) +                        # Thinner lines
-scale_fill_brewer(palette = "Set2")+
+scale_fill_brewer(palette = "Set3")+
 facet_grid(cols = vars(Test))+    # Set legend title
 xlab("Sample size") + 
 ylab("Power")+
 coord_flip()+
 theme_bw()+
 theme(legend.text = element_text(size=10))
-#ggsave('../plot/IT_power2.png' )
+ggsave("Fig4b.png", units="in", width=7, height=4, dpi=300)
 ```
 
 ```{r}
-# Figure S5b
-ds_mirk = read.csv('../table/twosample/ds-mirk3.csv')[-8,-1]
-ds_perm = read.csv('../table/twosample/ds-perm3.csv')[-8,-1]
+# Figure S7b
+ds_mirk = read.csv('../table/twosample/contsig-mirk.csv')[-10,-1]
+ds_perm = read.csv('../table/twosample/contsig-perm.csv')[-10,-1]
 
 res1 = c()
 res2 = c()
@@ -401,29 +642,31 @@ for(k in 1:ncol(ds_perm)){
 res1 = data.frame('Power'=res1)
 res2 = data.frame('Power'=res2)
 
-res1$Method =  rep(c('Unnormalized', 'RSim', 'CSS', 'MED', 'TMM', 'TSS', 'UQ'),ncol(ds_perm))
-res2$Method =  rep(c('Unnormalized', 'RSim', 'CSS', 'MED', 'TMM', 'TSS', 'UQ'),ncol(ds_perm))
+res1$Method =  rep(c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'),ncol(ds_perm))
+res2$Method =  rep(c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'),ncol(ds_perm))
 
-k = 7
+k = 9
 res1$m = c(rep(100,k),rep(300,k),rep(500,k))
 res2$m = c(rep(100,k),rep(300,k),rep(500,k))
 res1$Test = rep('PERMANOVA',3*k)
 res2$Test = rep('MiRKAT',3*k)
 res = rbind(res1,res2)
+res$Method = factor(res$Method,level = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'))
+
 
 ggplot(data=res, aes(x=as.factor(m), y=Power, fill=Method))+
 geom_bar(stat="identity",
          position=position_dodge(),
          size=.3,
         ) +                        # Thinner lines
-scale_fill_brewer(palette = "Set2")+
+scale_fill_brewer(palette = "Set3")+
 facet_grid(cols = vars(Test))+    # Set legend title
 xlab("Sample size") + 
 ylab("Power")+
 coord_flip()+
 theme_bw()+
 theme(legend.text = element_text(size=10))
-##ggsave('../plot/IT_power3.png' )
+
 ```
 
 ```{r}
@@ -431,8 +674,8 @@ theme(legend.text = element_text(size=10))
 ds_mirk = read.csv('../table/twosample/sc-mirk.csv')[,-1]
 ds_perm = read.csv('../table/twosample/sc-perm.csv')[,-1]
 
-ds_mirk = ds_mirk[-8,]
-ds_perm = ds_perm[-8,]
+ds_mirk = ds_mirk[-10,]
+ds_perm = ds_perm[-10,]
 res1 = c()
 res2 = c()
 for(k in 1:ncol(ds_perm)){
@@ -441,20 +684,23 @@ for(k in 1:ncol(ds_perm)){
 }
 res1 = data.frame('Power'=res1)
 res2 = data.frame('Power'=res2)
-res1$Method =  rep(c('Unnormalized', 'RSim', 'CSS', 'MED', 'TMM', 'TSS', 'UQ'),ncol(ds_perm))
-res2$Method =  rep(c('Unnormalized', 'RSim', 'CSS', 'MED', 'TMM', 'TSS', 'UQ'),ncol(ds_perm))
-res1$c = c(rep(1,7),rep(2,7),rep(3,7))
-res2$c = c(rep(1,7),rep(2,7),rep(3,7))
-res1$Test = rep('PERMANOVA',21)
-res2$Test = rep('MiRKAT',21)
+res1$Method =  rep(c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'),ncol(ds_perm))
+res2$Method =  rep(c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'),ncol(ds_perm))
+k = 9
+res1$c = c(rep(1,k),rep(2,k),rep(3,k))
+res2$c = c(rep(1,k),rep(2,k),rep(3,k))
+res1$Test = rep('PERMANOVA',3*k)
+res2$Test = rep('MiRKAT',3*k)
 res = rbind(res1,res2)
+res$Method = factor(res$Method,level = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction'))
 
 ## plot
+
 ggplot(data=res, aes(x=as.factor(c), y=Power, fill=Method))+
 geom_bar(stat="identity",
          position=position_dodge(),
          size=.3) +                        # Thinner lines
-scale_fill_brewer(palette = "Set2")+ 
+scale_fill_brewer(palette = "Set3")+ 
 facet_grid(cols = vars(Test))+    # Set legend title
 xlab("Sampling Fraction Difference") + 
 ylab("Type I Error")+
@@ -463,5 +709,6 @@ theme_bw()+
 theme(legend.text = element_text(size=10))+
 geom_hline(yintercept=0.05, linetype="dashed", 
             color = "red", size=1)
+ggsave("Fig4a.png", units="in", width=7, height=4, dpi=300)
 ```
 

@@ -1,10 +1,12 @@
 library(phangorn)
-library(ggplot2)
+library(dplyr)
+#library(ggplot2)
 library(metagenomeSeq)
 library(vegan)
 library(MiRKAT)
 library(DESeq2)
 library(MicrobiomeStat)
+library(matrixStats)
 
 ## Permanova ######################
 permanova <- function(P, Y, p = 2) {
@@ -52,7 +54,7 @@ CStat = function(X){
 rsim = function(X,eta=0.01,gamma = 0.8){
     d = nrow(X)
     v = CStat(X)
-    I0.1 = which(v>0.8)
+    I0.1 = which(v>gamma)
     X0 = X[I0.1,]
     v0 = replicate(3,CStat(X0[sample(1:nrow(X0),0.5*nrow(X0)),]))
     w = v[v>gamma]
@@ -130,9 +132,73 @@ tmm <- function(X){
     
 }
 
+## GMPR
+GMPR <- function (comm, intersect.no = 10, ct.min = 1, trace = TRUE) {
+    # Computes the GMPR size factor
+    #
+    # Args:
+    #   comm: a matrix of counts, row - features (OTUs, genes, etc) , column - sample
+    #   intersect.no: the minimum number of shared features between sample pair, where the ratio is calculated
+    #   ct.min: the minimum number of counts required to calculate ratios
+
+    #
+    # Returns:
+    #   a vector of the size factors with attribute 'NSS'. Samples with distinct sets of features will be output as NA.
+    #         NSS:   number of samples with significant sharing (> intersect.no) including itself
+    
+    # mask counts < ct.min
+    comm[comm < ct.min] <- 0
+    
+    if (is.null(colnames(comm))) {
+        colnames(comm) <- paste0('S', 1:ncol(comm))
+    }
+    
+    if (trace) cat('Begin GMPR size factor calculation ...\n')
+    
+    comm.no <- numeric(ncol(comm))
+    gmpr <- sapply(1:ncol(comm),  function(i) {
+                if (i %% 50 == 0) {
+                    cat(i, '\n')
+                }
+                x <- comm[, i]
+                # Compute the pairwise ratio
+                pr <- x / comm
+                # Handling of the NA, NaN, Inf
+                pr[is.nan(pr) | !is.finite(pr) | pr == 0] <- NA
+                # Counting the number of non-NA, NaN, Inf
+                incl.no <- colSums(!is.na(pr))
+                # Calculate the median of PR
+                pr.median <- colMedians(pr, na.rm=TRUE)
+                # Record the number of samples used for calculating the GMPR
+                comm.no[i] <<- sum(incl.no >= intersect.no)
+                # Geometric mean of PR median
+                if (comm.no[i] > 1) {
+                    return(exp(mean(log(pr.median[incl.no >= intersect.no]))))
+                } else {
+                    return(NA)
+                }
+            }
+    )
+    
+    if (sum(is.na(gmpr))) {
+        warning(paste0('The following samples\n ', paste(colnames(comm)[is.na(gmpr)], collapse='\n'),
+                '\ndo not share at least ', intersect.no, ' common taxa with the rest samples! ',
+                'For these samples, their size factors are set to be NA! \n',
+                'You may consider removing these samples since they are potentially outliers or negative controls!\n',
+                'You may also consider decreasing the minimum number of intersecting taxa and rerun the procedure!\n'))
+    }
+    
+    if (trace) cat('Completed!\n')
+    if (trace) cat('Please watch for the samples with limited sharing with other samples based on NSS! They may be outliers! \n')
+    names(gmpr) <- names(comm.no) <- colnames(comm)
+    attr(gmpr, 'NSS') <- comm.no
+    gmpr.res = t(t(comm) / gmpr)
+    return(list('P' = gmpr.res, 'sf' = gmpr))
+}
+
 ##Normalized value############################################
 
-Normalized = function(X,eta = 0.01, ref = NULL){
+Normalized = function(X,eta = 0.01, seq = 5000, ref = NULL){
     rownames(X) = c(1:nrow(X))
     colnames(X) = c(1:ncol(X))
     P.cn = rsim(X,eta)$P
@@ -141,7 +207,9 @@ Normalized = function(X,eta = 0.01, ref = NULL){
     P.tmm = tmm(X)$P
     P.tss = tss(X)$P
     P.uq = uq(X)$P
-    res = list(X,P.cn,P.css,P.med,P.tmm,P.tss,P.uq)
+    P.gmpr = GMPR(X)$P
+    P.ry = t(rrarefy(t(X),seq))
+    res = list(P.cn,X,P.css,P.med,P.tmm,P.tss,P.uq,P.gmpr,P.ry)
     if(!is.null(ref)){
         P.true = true.ref(X,ref)$P
         res = c(res,list(P.true))
@@ -157,8 +225,9 @@ est_factor = function(X,eta = 0.01, ref = NULL){
     sf.tmm = tmm(X)$sf
     sf.tss = tss(X)$sf
     sf.uq = uq(X)$sf
+    sf.gmpr = GMPR(X)$sf
     sf.true = true.ref(X,ref)$sf
-    res = data.frame('sf.est' = c(sf.cn, sf.css, sf.med, sf.tmm, sf.tss, sf.uq, sf.true),'Method' = c(rep('RSim',ncol(X)),rep('CSS',ncol(X)),rep('MED',ncol(X)),rep('TMM',ncol(X)),rep('TSS',ncol(X)),rep('UQ',ncol(X)),rep('Oracle',ncol(X))))
+    res = data.frame('sf.est' = c(sf.cn, sf.css, sf.med, sf.tmm, sf.tss, sf.uq, sf.gmpr, sf.true),'Method' = c(rep('RSim',ncol(X)),rep('CSS',ncol(X)),rep('MED',ncol(X)),rep('TMM',ncol(X)),rep('TSS',ncol(X)),rep('UQ',ncol(X)),rep('GMPR',ncol(X)),rep('Oracle',ncol(X))))
     return(res)
 }
 

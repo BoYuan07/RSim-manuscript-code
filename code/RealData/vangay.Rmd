@@ -71,6 +71,7 @@ TAXA = tax_table(as.matrix(taxonomy))
 physeq = phyloseq(OTU,TAXA,META, PHYLO) 
 ```
 
+
 # Normalization
 
 ```{r}
@@ -96,10 +97,10 @@ mds.plot = function(A,gl,main,pvalue){
   mds.data = data.frame(Sample=rownames(mds.values),
                          X=mds.values[,1],
                          Y=mds.values[,2],
-                        group = gl)
+                        Group = gl)
 
 
-  ggplot(data=mds.data, aes(x=X, y=Y,col=group))+
+  ggplot(data=mds.data, aes(x=X, y=Y,col=Group))+
     geom_point(size=0.5)+
     xlab(paste("PCoA1 -", mds.var.per[1], '%', sep=""))+
     ylab(paste("PCoA2 -", mds.var.per[2], '%', sep=""))+
@@ -123,29 +124,40 @@ for(i in 1:length(P.list)){
   P2 = P.list[[i]]
   P2 = P2[,which(meta$sample_group=='KarenThai')]
   P_sub = P2[,c(ind1,ind2)]
-  dist_matrix = dist(t(P_sub))
-  df.Y = as.data.frame(Y)
-  Re = adonis2(dist_matrix~Y, data = df.Y,permutations = 9999)
+  Y1 = Y[!is.na(colSums(P_sub))]
+  P_sub1 = P_sub[,!is.na(colSums(P_sub))]
+  dist_matrix = dist(t(P_sub1))
+  df.Y = as.data.frame(Y1)
+  Re = adonis2(dist_matrix~Y1, data = df.Y,permutations = 9999)
   pvalue = c(pvalue,Re$`Pr(>F)`[1])
   print(Re$`Pr(>F)`[1])
 }
 ```
 
 ```{r}
-method.list = c('Unnormalized','RSim','CSS','MED','TMM','TSS','UQ')
+save(P.list,file = "3cData.RData")
+```
+
+
+```{r}
+method.list = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction')
 p = NULL
 Y = as.factor(c(rep("<5000",length(ind1)),rep(">10000",length(ind2))))
 for(i in 1:length(P.list)){
   P2 = P.list[[i]]
   P2 = P2[,which(meta$sample_group=='KarenThai')]
   P_sub = P2[,c(ind1,ind2)]
+  Y1 = Y[!is.na(colSums(P_sub))]
+  P_sub1 = P_sub[,!is.na(colSums(P_sub))]
   if(is.null(p)){
-    p = mds.plot(log(P_sub+1),Y,method.list[i],pvalue[i])
+    p = mds.plot(log(P_sub1+1),Y1,method.list[i],pvalue[i])
   }else{
-    p = p + mds.plot(log(P_sub+1),Y,method.list[i],pvalue[i])
+    p = p + mds.plot(log(P_sub1+1),Y1,method.list[i],pvalue[i])
   }
 }
-p+ plot_layout(ncol = 7,guides = "collect")& theme(legend.position = "bottom") 
+
+p+ plot_layout(ncol = 9,guides = "collect")& theme(legend.position = "bottom") 
+ggsave("../figure/Fig3c.png", units="in", width=15, height=2.7, dpi=300)
 ```
 
 # Association Test-Table 1
@@ -158,9 +170,11 @@ pvalue = c()
 for(i in 1:length(P.list)){
   P2 = P.list[[i]]
   P2 = P2[,which(meta$sample_group == 'KarenThai')]
-  dist_matrix = dist(t(P2))
-  df.Y = as.data.frame(Y)
-  Re = adonis2(dist_matrix~Y, data = df.Y, permutations = 9999)
+  Y1 = Y[!is.na(colSums(P2))]
+  P2.1 = P2[,!is.na(colSums(P2))]
+  dist_matrix = dist(t(P2.1))
+  df.Y = as.data.frame(Y1)
+  Re = adonis2(dist_matrix~Y1, data = df.Y, permutations = 9999)
   pvalue = c(pvalue,Re$`Pr(>F)`[1])
   print(Re$`Pr(>F)`[1])
 }
@@ -174,9 +188,11 @@ pvalue1 = c()
 for(i in 1:length(P.list)){
   P2 = P.list[[i]]
   P2 = P2[,which(meta$sample_group == 'KarenThai')]
-  dist_matrix = dist(t(P2))
+  Y1 = Y[!is.na(colSums(P2))]
+  P2.1 = P2[,!is.na(colSums(P2))]
+  dist_matrix = dist(t(P2.1))
   kerlP <- D2K(as.matrix(dist_matrix))
-  Re = MiRKAT(y = Y, Ks = kerlP)
+  Re = MiRKAT(y = Y1, Ks = kerlP)
   pvalue1 = c(pvalue1,Re$p_values)
   print(Re$p_values)
 }
@@ -185,7 +201,7 @@ for(i in 1:length(P.list)){
 ```{r}
 res = data.frame("PERMANOVA" = pvalue, "MiRKAT" = pvalue1)
 
-#write.csv(res,"../Realdata/KarenThai_bmi.csv")
+#write.csv(res,"KarenThai_bmi.csv")
 ```
 
 # Differential Abundant Test-Table S1

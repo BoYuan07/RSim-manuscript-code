@@ -71,19 +71,24 @@ meta_lp = meta1[meta1$common_sample_site=="R_palm",]
 seq_depth = data.frame(dp = colSums(P_lp), days = meta_lp$days_since_experiment_start)
 
 # Figure S4c
+tiff("../figure/Fig S6c.tiff", units="in", width=5, height=4, res=300)
 ggplot(data = seq_depth, aes(x = days, y = dp))+
   geom_point(size = 0.3)+
   geom_smooth(se = FALSE)+
   xlab("Days")+
   ylab("Sequencing Depth")+
   theme_bw()
+dev.off()
 ```
+
+
+
 
 ```{r}
 # Normalization
 P.list = Normalized(P1,eta=0)
 
-method.list = c("Unnormalized", "RSim", "CSS", "MED", "TMM", "TSS", "UQ")
+method.list = c('RSim','Unnormalized','CSS','MED','TMM','TSS','UQ','GMPR','Rarefaction')
 dist.list = list()
 for(i in 1:length(P.list)){
   dist.list[[i]] = dist(t((log2(P.list[[i]]+1))))
@@ -128,7 +133,7 @@ for(i in 1:length(P.list)){
     theme_bw()
   }
 }
-p.age + plot_layout(ncol = 7,guides = "collect")&theme(legend.position = "bottom")
+p.age + plot_layout(ncol = 9,guides = "collect")&theme(legend.position = "bottom")
 ```
 
 ```{r}
@@ -163,7 +168,7 @@ for(i in 1:length(P.list)){
   }
 }
 
-p.seq + plot_layout(ncol = 7,guides = "collect")&theme(legend.position = "bottom")
+p.seq + plot_layout(ncol = 9,guides = "collect")&theme(legend.position = "bottom")
 ```
 
 # Differential Abundant Test-Figure 6
@@ -222,7 +227,10 @@ for(alpha in seq(0.01,0.1,0.01)){
   rdb_res = RDB::rdb(t(X),as.numeric(as.factor(Y))-1,alpha = alpha)
   rdb.res = c(rdb.res,mean(rdb_res))
 }
+```
 
+
+```{r}
 # t-test
 X.list = Normalized(X,eta = 0)
 t.res = list()
@@ -241,17 +249,17 @@ for(i in 1:length(X.list)){
 
 ```{r}
 # Figure 6a
-res1 = list(t.res[[1]], t.res[[2]], t.res[[3]], t.res[[4]], t.res[[5]], t.res[[6]], t.res[[7]])
-method = c("Unnormalized-t", "RSim-t", "CSS-t", "MED-t", "TMM-t", "TSS-t", "UQ-t")
+res1 = list(t.res[[1]], t.res[[2]], t.res[[3]], t.res[[4]], t.res[[5]], t.res[[6]], t.res[[7]], t.res[[8]])
+method = c("RSim-t", "Unnormalized-t",  "CSS-t", "MED-t", "TMM-t", "TSS-t", "UQ-t", "GMPR-t")
 
 data = data.frame("alpha" =seq(0.01,0.1,0.01), "Error" = res1[[1]], "Method" = rep(method[1],10))
 for(i in 2:length(res1)){
   data1 = data.frame("alpha" =seq(0.01,0.1,0.01), "Error" = res1[[i]], "Method" = rep(method[i],10))
   data = rbind(data,data1)
 }
-
+data$Method = factor(data$Method,level = c("RSim-t", "Unnormalized-t",  "CSS-t", "MED-t", "TMM-t", "TSS-t", "UQ-t", "GMPR-t"))
 ggplot(data, aes(alpha,Error))+
-  scale_shape_manual(values=1:7)+
+  scale_shape_manual(values=1:8)+
   geom_point(aes(color = Method, shape = Method))+
   geom_abline(intercept = 0, slope = 1,color="black")+
   xlab("Significance Level")+

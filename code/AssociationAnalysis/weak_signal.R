@@ -7,16 +7,16 @@ load('../../data/He/subtree.RData')
 
 # weak signal
 
-#jobid <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-#simu.iter = jobid
-#set.seed(jobid)
+jobid <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
+simu.iter = jobid
+set.seed(jobid)
 
 A1 = t(A)
 A1 = A1[rowSums(A1)!=0,]
 rm(A)
 m.list = c(100,300,500)
 p = 0.1
-res = matrix(0,nrow = 8, ncol = (length(m.list)*2))
+res = matrix(0,nrow = 10, ncol = (length(m.list)*2))
 k = 1
 for(m in m.list){
   X = A1[,sample(ncol(A1),m)]

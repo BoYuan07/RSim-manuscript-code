@@ -1,0 +1,106 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+## ----ImportOTUTable,tidy=F-----------------------------------------------
+#Import text formatted OTU Table as derived by biom convert:
+scml.OTUs_tax<-read.table("./OTU_Table_wTax_DilutionExperiment.txt",sep="\t",
+                          stringsAsFactors=F,header=TRUE,row.names=1)
+#Delete taxonomy column
+scml.OTUs<-scml.OTUs_tax[,-37] 
+
+## ----CreateTaxaMap-------------------------------------------------------
+TaxaMap<-data.frame(OTU=rownames(scml.OTUs),taxonomy=scml.OTUs_tax$taxonomy)
+
+## ----ImportMetaData------------------------------------------------------
+#Import MetaData Mapping File
+scml.meta<-read.table("./Mapping_DilutionExperiment.txt",sep="\t",header=TRUE)
+#Bring OTU table in same order like meta data in respect to sample ID
+ord<-match(scml.meta$SampleID,colnames(scml.OTUs))
+scml.OTUs<-scml.OTUs[,ord]
+
+## ----DesignConcentration-------------------------------------------------
+designConc<-read.table("./designConc_DilutionExperiment.csv",sep="\t",header=TRUE,
+                       row.names=1)
+designConc.names<-colnames(designConc)
+designConc<-designConc[,-c(which(colnames(designConc)=="Sample.87"),
+                           which(colnames(designConc)=="Sample.88"))]
+
+## ----ExcludeMIDs---------------------------------------------------------
+midToExclude<-c("MID39","MID40")
+midIDX<-which(colnames(scml.OTUs)%in%midToExclude)
+
+#Exclude MIDs from OTU table and convert to matrix:
+scml.OTUs.trim<-as.matrix(scml.OTUs[,-midIDX])
+
+#Exclude MIDs from the mapping table
+scml.meta.trim<-scml.meta[-midIDX,]
+
+## ----SpikePositions------------------------------------------------------
+#Search unique ID for S. Ruber:
+SalPos<-grep("AF323500XXXX",rownames(scml.OTUs.trim))
+## ----Spike-in---------------------------------------------------------
+Salini<-scml.OTUs.trim[SalPos,]
+```
+
+```{r}
+source("../Algorithm.R")
+set.seed(1)
+est_sf = est_factor(scml.OTUs.trim, 0.43, 0.3)
+methods = unique(est_sf$Method)
+for(method in methods){
+  est_sf$sf.est[est_sf$Method==method] = est_sf$sf.est[est_sf$Method==method]/sum(est_sf$sf.est[est_sf$Method==method])
+}
+Salini = Salini/sum(Salini)
+```
+
+```{r}
+log.ratio = c()
+for(method in methods){
+  log.ratio = c(log.ratio,abs(mean(log(Salini/est_sf$sf.est[est_sf$Method==method]))))
+}
+log.ratio = data.frame('Bias' = log.ratio, 'Method' = methods)
+log.ratio$Method = factor(log.ratio$Method,levels = c('RSim','CSS','MED','TMM','TSS','UQ','GMPR'))
+
+## plot
+ggplot(data=log.ratio, aes(x=Method, y=Bias, fill=Method))+
+geom_bar(stat="identity",
+         position=position_dodge(),
+         size=.1)+                        
+scale_fill_brewer(palette = "Set2")+ 
+ylab("Discrepancy from Spike-in")+
+ylim(0,0.3)+
+theme_bw()+
+theme(legend.text = element_text(size=10))
+```
+
+
+
+```{r}
+est_sf$ratio = est_sf$sf.est/Salini
+est_sf$Method <- factor(est_sf$Method , levels=c("RSim", "CSS", "MED", "TMM","TSS","UQ","GMPR"))
+p <- ggplot(est_sf, aes(x=Method, y=ratio)) + 
+  geom_boxplot()+
+  geom_abline(slope = 0, intercept = 1, color = 'red')+
+  theme_bw()+
+  xlab('Method')+
+  ylab('Sampling Fraction: Spike-in vs Scaling')
+p
+```
+
+
+
+
+
+
+
+

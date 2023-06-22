@@ -27,12 +27,13 @@ X[Clade,1:(m/2)] = X[Clade,1:(m/2)]+matrix(rpois((length(Clade)*m/2), lambda),nr
 X = sapply(1:m, function(i)rbinom(d, X[,i], Y[i]))
 sf_res1 = est_factor(X, eta=0.2, ref = (1:d)[-Clade])
 
-for(i in 1:7){
+for(i in 1:8){
   sf_res1[((i-1)*m+1):(i*m),1] = sf_res1[((i-1)*m+1):(i*m),1]*mean(Y)/mean(sf_res1[((i-1)*m+1):(i*m),1])
 }
 
-sf_res1$Group = rep(as.factor(c(rep(1,m/2),rep(2,m/2))),7)
-sf_res1$true = rep(Y,7)
+sf_res1$Group = rep(as.factor(c(rep(1,m/2),rep(2,m/2))),8)
+sf_res1$true = rep(Y,8)
+sf_res1$Method = factor(sf_res1$Method,level = c('RSim','CSS','MED','TMM','TSS','UQ','GMPR','Oracle'))
 ggplot(data = sf_res1, aes(x = true, y = sf.est, color = Group))+
     geom_point(size = 0.25)+
     geom_abline(slope = 1,intercept = 0,color = 'black',linewidth = 0.25)+
@@ -41,6 +42,7 @@ ggplot(data = sf_res1, aes(x = true, y = sf.est, color = Group))+
     ylab('Estimated Sampling Fraction')+
     theme_bw()+
     ylim(0,3)
+ggsave("../figure/Fig2a.png", units="in", width=15, height=2.5, dpi=300)
 ```
 
 
@@ -57,13 +59,13 @@ X[Clade,1:(m/2)] = X[Clade,1:(m/2)]+matrix(rpois((length(Clade)*m/2), lambda),nr
 X = sapply(1:m, function(i)rbinom(d, X[,i], Y[i]))
 sf_res2 = est_factor(X, eta=0.25, ref = (1:d)[-Clade])
 
-for(i in 1:7){
+for(i in 1:8){
   sf_res2[((i-1)*m+1):(i*m),1] = sf_res2[((i-1)*m+1):(i*m),1]*mean(Y)/mean(sf_res2[((i-1)*m+1):(i*m),1])
 }
 
-sf_res2$Group = rep(as.factor(c(rep(1,m/2),rep(2,m/2))),7)
-sf_res2$true = rep(Y,7)
-
+sf_res2$Group = rep(as.factor(c(rep(1,m/2),rep(2,m/2))),8)
+sf_res2$true = rep(Y,8)
+sf_res2$Method = factor(sf_res2$Method,level = c('RSim','CSS','MED','TMM','TSS','UQ','GMPR','Oracle'))
 ggplot(data = sf_res2, aes(x = true, y = sf.est, color = Group))+
     geom_point(size = 0.25)+
     geom_abline(slope = 1,intercept = 0,color = 'black',linewidth = 0.25)+
@@ -72,6 +74,7 @@ ggplot(data = sf_res2, aes(x = true, y = sf.est, color = Group))+
     ylab('Estimated Sampling Fraction')+
     theme_bw()+
     ylim(0,3)
+ggsave("../figure/Fig2b.png", units="in", width=15, height=2.5, dpi=300)
 ```
 
 
@@ -88,12 +91,13 @@ X[Clade,1:(m/2)] = X[Clade,1:(m/2)]+matrix(rpois((length(Clade)*m/2), lambda),nr
 X = sapply(1:m, function(i)rbinom(d, X[,i], Y[i]))
 sf_res3 = est_factor(X, eta=0.22, ref = (1:d)[-Clade])
 
-for(i in 1:7){
+for(i in 1:8){
   sf_res3[((i-1)*m+1):(i*m),1] = sf_res3[((i-1)*m+1):(i*m),1]*mean(Y)/mean(sf_res3[((i-1)*m+1):(i*m),1])
 }
 
-sf_res3$Group = rep(as.factor(c(rep(1,m/2),rep(2,m/2))),7)
-sf_res3$true = rep(Y,7)
+sf_res3$Group = rep(as.factor(c(rep(1,m/2),rep(2,m/2))),8)
+sf_res3$true = rep(Y,8)
+sf_res3$Method = factor(sf_res3$Method,level = c('RSim','CSS','MED','TMM','TSS','UQ','GMPR','Oracle'))
 
 ggplot(data = sf_res3, aes(x = true, y = sf.est, color = Group))+
     geom_point(size = 0.25)+
@@ -103,5 +107,6 @@ ggplot(data = sf_res3, aes(x = true, y = sf.est, color = Group))+
     ylab('Estimated Sampling Fraction')+
     theme_bw()+
     ylim(0,3)
+ggsave("../figure/Fig2c.png", units="in", width=15, height=2.5, dpi=300)
 ```
 

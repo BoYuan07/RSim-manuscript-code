@@ -2,9 +2,9 @@
 source("../Algorithm.R")
 load('../../data/He/subtree.RData')
 
-#jobid <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
-#simu.iter = jobid
-#set.seed(jobid)
+jobid <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
+simu.iter = jobid
+set.seed(jobid)
 
 A1 = t(A)
 A1 = A1[rowSums(A1)!=0,]
@@ -12,7 +12,7 @@ A1 = A1[,colSums(A1)>5000]
 d = nrow(A1)
 m = 500
 c.list = c(1,2,3)
-res =  matrix(0,nrow = 8, ncol = (2*length(c.list)))
+res =  matrix(0,nrow = 10, ncol = (2*length(c.list)))
 k = 1
 mode(A1) = "integer"
 for(c in c.list){
